@@ -113,6 +113,8 @@
   <ItemGroup>
     <Content Include="default.htm" />
     <Content Include="Global.asax" />
+    <Content Include="images\help\emulator1.PNG" />
+    <Content Include="images\Icons\nerd-face-emoji.png" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>
     </Content>
@@ -127,6 +129,8 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="packages.config" />
+    <Content Include="readme.md" />
+    <None Include="Properties\PublishProfiles\HabitatBot - Web Deploy.pubxml" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>
