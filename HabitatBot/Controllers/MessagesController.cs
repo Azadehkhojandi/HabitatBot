@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Description;
+using HabitatBot.Models;
 using Microsoft.Bot.Connector;
 using Newtonsoft.Json;
 
@@ -98,7 +99,7 @@ namespace HabitatBot
             return await PostResquestToAzureTextAnalytics(message, "keyPhrases");
         }
 
-        private static async Task<HttpResponseMessage> PostResquestToAzureTextAnalytics(string message, string action)
+        private async Task<HttpResponseMessage> PostResquestToAzureTextAnalytics(string message, string action)
         {
             var uri = $"https://westus.api.cognitive.microsoft.com/text/analytics/v2.0/{action}";
             var client = new HttpClient();
@@ -129,75 +130,120 @@ namespace HabitatBot
         async Task<string> MakeReplyText(string message)
         {
 
+
+            //TODO Replace it with Luis
             var replyText = PredefinedQuestions(message);
             if (!string.IsNullOrEmpty(replyText))
             {
                 return replyText;
             }
 
+            var luis = await DetectEntityFromLuis(message);
+            if (luis.TopScoringIntent != null)
+            {
+                switch (luis.TopScoringIntent.Intent)
+                {
+                    case "Hi":
+                        replyText = $"Hi there :), how can I help you?";
+                        break;
+                    case "Search":
+                        if (Request.RequestUri.Host.Contains("localhost"))
+                        {
+                            //sitecore api hosted locally
+                            //Call api
+                        }
+                        else
+                        {
+                            replyText =
+                                "I know you searched for the content but our sitecore endpoint is hosted locally and you need to test this feature with bot emoulator.";
+                        }
+                        break;
+                    case "Help":
+                        replyText = $"You can search or ask me a question?" + Environment.NewLine + "Like what is habiat? or What are habitat features?" + Environment.NewLine + " you can ask me to analyse your text to see how smart I'm ;)?";
+                        break;
+                    default:
+                        replyText = "I didn't understand your command but here is what I can tell you:" +
+                                    Environment.NewLine + $"{await GetMessageSentimentScoreText(message)} and {await GetMessageKeyPhrasesText(message)}";
+                        break;
+                }
+            }
+
+            return replyText;
+
+
+
+
+
+        }
+
+        private async Task<List<string>> GetMessageKeyPhrases(string message)
+        {
+            //Check keywords of message
+            var keyPhrasesPost = await DetectKeyPhrases(message);
+            var keyPhrasesRawResponse = await keyPhrasesPost.Content.ReadAsStringAsync();
+            var keyPhrasesJsonResponse = JsonConvert.DeserializeObject<BatchKeyPhrasesResul>(keyPhrasesRawResponse);
+            var keyPhrases = keyPhrasesJsonResponse?.Documents?.FirstOrDefault()?.KeyPhrases;
+            return keyPhrases;
+        }
+
+        private async Task<double> GetMessageSentimentScore(string message)
+        {
             //Check sentiment of message
             var sentimentPost = await DetectSentiment(message);
             var sentimentRawResponse = await sentimentPost.Content.ReadAsStringAsync();
             var sentimentJsonResponse = JsonConvert.DeserializeObject<BatchSentimentResult>(sentimentRawResponse);
             var sentimentScore = sentimentJsonResponse?.Documents?.FirstOrDefault()?.Score ?? 0;
 
+            return sentimentScore;
+        }
+
+        public async Task<string> GetMessageSentimentScoreText(string message)
+        {
+            var sentimentScore = await GetMessageSentimentScore(message);
             //TODO Check sentiment and respond accordingly
             string sentimentText;
             if (sentimentScore > 0.7)
             {
-                sentimentText = $"";
+                sentimentText = $"It's a positive statement";
             }
             else if (sentimentScore < 0.3)
             {
-                sentimentText = $"";
+                sentimentText = $"unfortunately,It's a negavtive statement";
             }
             else
             {
-                sentimentText = $"";
+                sentimentText = $"It's a neutral statement";
             }
-
-            //
-            //Check keywords of message
-            var keyPhrasesPost = await DetectKeyPhrases(message);
-            var keyPhrasesRawResponse = await keyPhrasesPost.Content.ReadAsStringAsync();
-            var keyPhrasesJsonResponse = JsonConvert.DeserializeObject<BatchKeyPhrasesResul>(keyPhrasesRawResponse);
-            var keyPhrases = keyPhrasesJsonResponse?.Documents?.FirstOrDefault()?.KeyPhrases;
-
-
-            replyText = $"sentimentScore: {sentimentScore} , {(keyPhrases != null ? string.Join(",", keyPhrases.ToArray()) : "")} ";
-            return replyText;
+            return $"{sentimentText} and your sentimentScore is {sentimentScore}";
         }
 
-    }
-    public class BatchKeyPhrasesResul
-    {
-        public List<DocumentKeyPhrasesResult> Documents { get; set; }
-        public List<object> Errors { get; set; }
-    }
-    public class BatchSentimentResult
-    {
-        public List<DocumentSentimentResult> Documents { get; set; }
-        public List<object> Errors { get; set; }
-    }
-    public class DocumentSentimentResult
-    {
-        public int Id { get; set; }
-        public double Score { get; set; }
-    }
-    public class DocumentKeyPhrasesResult
-    {
-        public int Id { get; set; }
-        public List<string> KeyPhrases { get; set; }
-    }
 
-    public class BatchInput
-    {
-        public List<DocumentInput> Documents { get; set; }
-    }
+        public async Task<string> GetMessageKeyPhrasesText(string message)
+        {
+            var keyPhrases = await GetMessageKeyPhrases(message);
 
-    public class DocumentInput
-    {
-        public int Id { get; set; }
-        public string Text { get; set; }
+
+            return $"key phrases I found: {(keyPhrases != null ? string.Join(",", keyPhrases.ToArray()) : "")} ";
+            
+        }
+
+        private static async Task<HabitatLuis> DetectEntityFromLuis(string query)
+        {
+            query = Uri.EscapeDataString(query);
+            var result = new HabitatLuis();
+            using (var client = new HttpClient())
+            {
+                var requestUri = "https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/479df8af-3547-4c6b-a216-18dab9e5ac5e?subscription-key=54c25066ceac4f148a48c70f18787404&verbose=true&spellCheck=true&q=" + query;
+                var msg = await client.GetAsync(requestUri);
+
+                if (msg.IsSuccessStatusCode)
+                {
+                    var jsonDataResponse = await msg.Content.ReadAsStringAsync();
+                    result = JsonConvert.DeserializeObject<HabitatLuis>(jsonDataResponse);
+                }
+            }
+            return result;
+        }
+
     }
 }

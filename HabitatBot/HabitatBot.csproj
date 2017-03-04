@@ -121,6 +121,16 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App_Start\WebApiConfig.cs" />
+    <Compile Include="Models\BatchInput.cs" />
+    <Compile Include="Models\BatchKeyPhrasesResul.cs" />
+    <Compile Include="Models\BatchSentimentResult.cs" />
+    <Compile Include="Models\DocumentInput.cs" />
+    <Compile Include="Models\DocumentKeyPhrasesResult.cs" />
+    <Compile Include="Models\DocumentSentimentResult.cs" />
+    <Compile Include="Models\HabitatLuis.cs" />
+    <Compile Include="Models\LuisEntity.cs" />
+    <Compile Include="Models\LuisIntent.cs" />
+    <Compile Include="Models\LuisTopScoringIntent.cs" />
     <Compile Include="Controllers\MessagesController.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
