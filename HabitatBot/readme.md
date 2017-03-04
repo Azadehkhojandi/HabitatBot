@@ -8,7 +8,10 @@
 3- start testing bot and sending message 
 ![alt tag](images\help\emulator1.PNG)
 
-4- app settings 
+4- To get your free keys go to  https://www.microsoft.com/cognitive-services/en-us/subscriptions
+
+5- app settings 
 you need to update values in appsettings to get the module working
+
 
 for detailed info you can look into https://docs.botframework.com/en-us/csharp/builder/sdkreference/gettingstarted.html

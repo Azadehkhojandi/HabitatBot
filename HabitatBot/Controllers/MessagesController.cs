@@ -5,6 +5,7 @@ using System.EnterpriseServices.Internal;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Description;
@@ -27,17 +28,10 @@ namespace HabitatBot
             {
                 ConnectorClient connector = new ConnectorClient(new Uri(activity.ServiceUrl));
 
-
-                var message = predefinedQuestions(activity.Text);
-                if (string.IsNullOrEmpty(message))
-                {
-                    // calculate something for us to return
-                    int length = (activity.Text ?? string.Empty).Length;
-                    message = $"You sent {activity.Text} which was {length} characters";
-                }
+                var replyText = await MakeReplyText(activity.Text);
 
                 // return our reply to the user
-                Activity reply = activity.CreateReply(message);
+                Activity reply = activity.CreateReply(replyText);
                 await connector.Conversations.ReplyToActivityAsync(reply);
             }
             else
@@ -77,7 +71,7 @@ namespace HabitatBot
             return null;
         }
 
-        public string predefinedQuestions(string message)
+        public string PredefinedQuestions(string message)
         {
             var sitecoreSearchTextEndPoint = ConfigurationManager.AppSettings["SitecoreSearchTextEndPoint"];
             var qa = new Dictionary<string, string>
@@ -94,18 +88,106 @@ namespace HabitatBot
             return null;
 
         }
+        async Task<HttpResponseMessage> DetectSentiment(string message)
+        {
+            return await PostResquestToAzureTextAnalytics(message, "sentiment");
+        }
+
+        async Task<HttpResponseMessage> DetectKeyPhrases(string message)
+        {
+            return await PostResquestToAzureTextAnalytics(message, "keyPhrases");
+        }
+
+        private static async Task<HttpResponseMessage> PostResquestToAzureTextAnalytics(string message, string action)
+        {
+            var uri = $"https://westus.api.cognitive.microsoft.com/text/analytics/v2.0/{action}";
+            var client = new HttpClient();
+
+            // Request headers
+            client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", ConfigurationManager.AppSettings["TextAnalyticsKey"]);
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+
+            var input = new BatchInput
+            {
+                Documents = new List<DocumentInput>
+                {
+                    new DocumentInput
+                    {
+                        Id = 1,
+                        Text = message,
+                    }
+                }
+            };
+            var json = JsonConvert.SerializeObject(input);
+            var postResult = await client.PostAsync(uri, new StringContent(json, Encoding.UTF8, "application/json"));
+
+            return postResult;
+        }
+
+
+
+        async Task<string> MakeReplyText(string message)
+        {
+
+            var replyText = PredefinedQuestions(message);
+            if (!string.IsNullOrEmpty(replyText))
+            {
+                return replyText;
+            }
+
+            //Check sentiment of message
+            var sentimentPost = await DetectSentiment(message);
+            var sentimentRawResponse = await sentimentPost.Content.ReadAsStringAsync();
+            var sentimentJsonResponse = JsonConvert.DeserializeObject<BatchSentimentResult>(sentimentRawResponse);
+            var sentimentScore = sentimentJsonResponse?.Documents?.FirstOrDefault()?.Score ?? 0;
+
+            //TODO Check sentiment and respond accordingly
+            string sentimentText;
+            if (sentimentScore > 0.7)
+            {
+                sentimentText = $"";
+            }
+            else if (sentimentScore < 0.3)
+            {
+                sentimentText = $"";
+            }
+            else
+            {
+                sentimentText = $"";
+            }
+
+            //
+            //Check keywords of message
+            var keyPhrasesPost = await DetectKeyPhrases(message);
+            var keyPhrasesRawResponse = await keyPhrasesPost.Content.ReadAsStringAsync();
+            var keyPhrasesJsonResponse = JsonConvert.DeserializeObject<BatchKeyPhrasesResul>(keyPhrasesRawResponse);
+            var keyPhrases = keyPhrasesJsonResponse?.Documents?.FirstOrDefault()?.KeyPhrases;
+
+
+            replyText = $"sentimentScore: {sentimentScore} , {(keyPhrases != null ? string.Join(",", keyPhrases.ToArray()) : "")} ";
+            return replyText;
+        }
 
     }
-
-    public class BatchResult
+    public class BatchKeyPhrasesResul
     {
-        public List<DocumentResult> Documents { get; set; }
+        public List<DocumentKeyPhrasesResult> Documents { get; set; }
         public List<object> Errors { get; set; }
     }
-    public class DocumentResult
+    public class BatchSentimentResult
+    {
+        public List<DocumentSentimentResult> Documents { get; set; }
+        public List<object> Errors { get; set; }
+    }
+    public class DocumentSentimentResult
     {
         public int Id { get; set; }
         public double Score { get; set; }
+    }
+    public class DocumentKeyPhrasesResult
+    {
+        public int Id { get; set; }
+        public List<string> KeyPhrases { get; set; }
     }
 
     public class BatchInput
