@@ -6,7 +6,7 @@
  http://localhost:xxxx/api/messages remeber the port number changes and you need to enter correct port number instead of xxxx
 
 3- start testing bot and sending message 
-![alt tag](images\help\emulator1.PNG)
+
 
 4- app settings 
 you need to update values in appsettings to get the module working
