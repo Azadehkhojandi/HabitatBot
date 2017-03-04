@@ -155,9 +155,13 @@ namespace HabitatBot
                                 "I know you searched for the content but our sitecore endpoint is hosted locally and you need to test this feature with bot emoulator.";
                         }
                         break;
+                    case "Who":
+                        replyText = $"This bot is built by Az:@azadehhojandi, Zhen:@WalleYuan and Budi:@budi4w4n";
+                        break;
                     case "Help":
                         replyText = $"You can search or ask me a question?" + Environment.NewLine + "Like what is habiat? or What are habitat features?" + Environment.NewLine + " you can ask me to analyse your text to see how smart I'm ;)?";
                         break;
+                    case "Analyse":
                     default:
                         replyText = "I didn't understand your command but here is what I can tell you:" +
                                     Environment.NewLine + $"{await GetMessageSentimentScoreText(message)} and {await GetMessageKeyPhrasesText(message)}";
