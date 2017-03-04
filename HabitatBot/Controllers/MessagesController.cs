@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -65,5 +66,28 @@ namespace HabitatBot
 
             return null;
         }
+
+
+    }
+    public class BatchResult
+    {
+        public List<DocumentResult> Documents { get; set; }
+        public List<object> Errors { get; set; }
+    }
+    public class DocumentResult
+    {
+        public int Id { get; set; }
+        public double Score { get; set; }
+    }
+
+    public class BatchInput
+    {
+        public List<DocumentInput> Documents { get; set; }
+    }
+
+    public class DocumentInput
+    {
+        public int Id { get; set; }
+        public string Text { get; set; }
     }
 }
