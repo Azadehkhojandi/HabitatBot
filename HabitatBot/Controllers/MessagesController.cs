@@ -125,11 +125,8 @@ namespace HabitatBot
             return postResult;
         }
 
-
-
         async Task<string> MakeReplyText(string message)
         {
-
 
             //TODO Replace it with Luis
             var replyText = PredefinedQuestions(message);
