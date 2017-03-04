@@ -114,7 +114,15 @@
     <Content Include="default.htm" />
     <Content Include="Global.asax" />
     <Content Include="images\help\emulator1.PNG" />
+    <Content Include="images\help\emulator2-cards.PNG" />
+    <Content Include="images\help\emulator3-search-cards.PNG" />
+    <Content Include="images\help\emulator3-search2-cards.PNG" />
     <Content Include="images\help\HabiatBotDiagram.png" />
+    <Content Include="images\help\habitatChatBot.PNG" />
+    <Content Include="images\help\habitatendpointapiresult.PNG" />
+    <Content Include="images\help\RunBot.PNG" />
+    <Content Include="images\help\RunBot2.PNG" />
+    <Content Include="images\help\SkypeTest.PNG" />
     <Content Include="images\Icons\nerd-face-emoji.png" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>
