@@ -114,9 +114,11 @@ namespace HabitatBot.Controllers
                         if (Request.RequestUri.Host.Contains("localhost"))
                         {
                             //sitecore api hosted locally
-                            var keywords=await GetMessageKeyPhrasesText(message.Text);
+                            var keywords=await GetMessageKeyPhrases(message.Text);
+                            
                             //Call api
-                            var sitecoreSearchTextEndPointUri =ConfigurationManager.AppSettings["SitecoreSearchTextEndPoint"] +$"?id={keywords.FirstOrDefault()}";
+                            var sitecoreSearchTextEndPointUri =ConfigurationManager.AppSettings["SitecoreSearchTextEndPoint"] +$"?id={keywords.FirstOrDefault().Split(' ').First()}";
+                            var sitecoreHost = ConfigurationManager.AppSettings["SitecoreHost"] ;
                             var client = new HttpClient();
 
                             // Request headers
@@ -126,17 +128,33 @@ namespace HabitatBot.Controllers
                             var getResult = await client.GetAsync(sitecoreSearchTextEndPointUri);
                             var rawResponse = await getResult.Content.ReadAsStringAsync();
                             var items  = JsonConvert.DeserializeObject<List<  HabitatSearchModel>>(rawResponse).Take(3);
-
-                            var replyToSearchConversation = message.CreateReply("This bot is built by:");
-                            replyToSearchConversation.Recipient = message.From;
-                            replyToSearchConversation.Type = "message";
-                            replyToSearchConversation.Attachments = new List<Attachment>();
-                            foreach (var item in items)
+                            if (items.Any())
                             {
-                                var card = CreateCardMessageOneButtonOneImage(null, @"See more", item.Link, item.Name, item.Description);
-                                replyToSearchConversation.Attachments.Add(card);
+                                var replyToSearchConversation =
+                                    message.CreateReply("The top three relevant content that I found:");
+                                replyToSearchConversation.Recipient = message.From;
+                                replyToSearchConversation.Type = "message";
+                                replyToSearchConversation.Attachments = new List<Attachment>();
+                                foreach (var item in items)
+                                {
+                                    string imageurl = null;
+                                    if (!string.IsNullOrEmpty(item.ImageUrl))
+                                    {
+                                        imageurl = $"{sitecoreHost}{item.ImageUrl}";
+                                    }
+                                    var card = CreateCardMessageOneButtonOneImage(imageurl, @"See more", item.Link,
+                                        item.Name, item.Description);
+                                    replyToSearchConversation.Attachments.Add(card);
+                                }
+                                reply = replyToSearchConversation;
                             }
-                            reply = replyToSearchConversation;
+                            else
+                            {
+                                replyText =
+                               "I couldn't find any relevant result in habitat :("+Environment.NewLine+" Maybe search for something else like "+ "find John";
+                                reply = message.CreateReply(replyText);
+                            }
+                         
                         }
                         else
                         {
@@ -160,7 +178,7 @@ namespace HabitatBot.Controllers
                         reply = replyToConversation;
                         break;
                     case "Help":
-                        replyText = $"You can search or ask me a question?" + Environment.NewLine + "Like what is habiat? or What are habitat features?" + Environment.NewLine + " you can ask me to analyse your text to see how smart I'm ;)?";
+                        replyText = $"You can search or ask me a question?" + Environment.NewLine + "Like find John or What are habitat features?" + Environment.NewLine + " you can ask me to analyse your text to see how smart I'm ;) like analyse I'm happy?";
                         reply = message.CreateReply(replyText);
                         break;
                     case "Analyse":
@@ -258,10 +276,15 @@ namespace HabitatBot.Controllers
 
         private async Task<string> GetMessageKeyPhrasesText(string message)
         {
-            var keyPhrases = await GetMessageKeyPhrases(message);
-
-
+            var tmpmessage = message.ToLower().Replace("analyse", "").Replace("test","");
+            var keyPhrases = await GetMessageKeyPhrases(tmpmessage);
+            var tmpKeyPhrases = keyPhrases.Where(x => !string.IsNullOrEmpty(x)).Select(s => s);
+            if (tmpKeyPhrases.Any())
+            {
             return $"key phrases I found: {(keyPhrases != null ? string.Join(",", keyPhrases.ToArray()) : "")} ";
+
+            }
+            return string.Empty;
 
         }
 
