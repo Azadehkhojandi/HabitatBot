@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Description;
+using System.Web.UI.WebControls;
 using HabitatBot.Models;
 using Microsoft.Bot.Connector;
 using Newtonsoft.Json;
@@ -25,14 +26,20 @@ namespace HabitatBot
         /// </summary>
         public async Task<HttpResponseMessage> Post([FromBody]Activity activity)
         {
+            
+
+
+
             if (activity.Type == ActivityTypes.Message)
             {
-                ConnectorClient connector = new ConnectorClient(new Uri(activity.ServiceUrl));
+                var connector = new ConnectorClient(new Uri(activity.ServiceUrl));
 
-                var replyText = await MakeReplyText(activity.Text);
+             
 
-                // return our reply to the user
-                Activity reply = activity.CreateReply(replyText);
+                var reply= await MakeReply(activity);
+
+             
+
                 await connector.Conversations.ReplyToActivityAsync(reply);
             }
             else
@@ -125,23 +132,50 @@ namespace HabitatBot
             return postResult;
         }
 
-        async Task<string> MakeReplyText(string message)
+        async Task<Activity> MakeReply(Activity message)
         {
 
-            //TODO Replace it with Luis
-            var replyText = PredefinedQuestions(message);
-            if (!string.IsNullOrEmpty(replyText))
-            {
-                return replyText;
-            }
 
-            var luis = await DetectEntityFromLuis(message);
+
+            //            {
+            //                "type": "message",
+            //  "text": "Sample with a hero card",
+            //  "attachments": [
+            //    {
+            //      "contentType": "application/vnd.microsoft.card.hero",
+            //      "content": {
+            //        "title": "I'm a hero card",
+            //        "subtitle": "Please visit my site.",
+            //        "images": [
+            //          {
+            //            "url": "https://mydeploy.azurewebsites.net/matsu.jpg"
+            //          }
+            //        ],
+            //        "buttons": [
+            //          {
+            //            "type": "openUrl",
+            //            "title": "Go to my site",
+            //            "value": "https://blogs.msdn.microsoft.com/tsmatsuz"
+            //          }
+            //        ]
+            //      }
+            //    }
+            //  ]
+            //}
+
+
+            Activity reply=null;
+            string replyText = null;
+
+            var luis = await DetectEntityFromLuis(message.Text);
             if (luis.TopScoringIntent != null)
             {
                 switch (luis.TopScoringIntent.Intent)
                 {
                     case "Hi":
-                        replyText = $"Hi there :), how can I help you?";
+                         replyText = $"Hi there :), how can I help you?";
+                         reply = message.CreateReply(replyText);
+                      
                         break;
                     case "Search":
                         if (Request.RequestUri.Host.Contains("localhost"))
@@ -153,28 +187,73 @@ namespace HabitatBot
                         {
                             replyText =
                                 "I know you searched for the content but our sitecore endpoint is hosted locally and you need to test this feature with bot emoulator.";
+                            reply = message.CreateReply(replyText);
                         }
                         break;
                     case "Who":
-                        replyText = $"This bot is built by Az:@azadehhojandi, Zhen:@WalleYuan and Budi:@budi4w4n";
+                        var replyToConversation = message.CreateReply("This bot is built by:");
+                        replyToConversation.Recipient = message.From;
+                        replyToConversation.Type = "message";
+                        replyToConversation.Attachments = new List<Attachment>();
+                        var card1 = CreateCardMessageOneButtonOneImage("https://pbs.twimg.com/profile_images/764455063892791299/D3h9i0qI.jpg",@"See more", "https://azadehkhojandi.blogspot.com.au/", "Azadeh Khojandi","");
+                        var card2 = CreateCardMessageOneButtonOneImage("https://pbs.twimg.com/profile_images/794145230110887937/K8avquW0.jpg", @"See more", "https://zhenyuan.azurewebsites.net/", "Zhen Yuan", "");
+                        var card3 = CreateCardMessageOneButtonOneImage("https://abs.twimg.com/sticky/default_profile_images/default_profile_4_200x200.png", @"See more", "https://twitter.com/budi4w4n", "Budiawan Muliawan", "");
+                        replyToConversation.Attachments.Add(card1);
+                        replyToConversation.Attachments.Add(card2);
+                        replyToConversation.Attachments.Add(card3);
+
+                        reply = replyToConversation;
                         break;
                     case "Help":
                         replyText = $"You can search or ask me a question?" + Environment.NewLine + "Like what is habiat? or What are habitat features?" + Environment.NewLine + " you can ask me to analyse your text to see how smart I'm ;)?";
+                        reply = message.CreateReply(replyText);
                         break;
                     case "Analyse":
+                        replyText = "Here is what I can tell you:" +
+                                    Environment.NewLine + $"{await GetMessageSentimentScoreText(message.Text)} and {await GetMessageKeyPhrasesText(message.Text)}";
+                        reply = message.CreateReply(replyText);
+                        break;
                     default:
                         replyText = "I didn't understand your command but here is what I can tell you:" +
-                                    Environment.NewLine + $"{await GetMessageSentimentScoreText(message)} and {await GetMessageKeyPhrasesText(message)}";
+                                    Environment.NewLine + $"{await GetMessageSentimentScoreText(message.Text)} and {await GetMessageKeyPhrasesText(message.Text)}";
+                        reply = message.CreateReply(replyText);
                         break;
                 }
             }
+            if ( reply == null)
+            {
+                replyText = "I didn't understand your command may be start by typeing help";
+                reply = message.CreateReply(replyText);
+            }
+            return reply;
 
-            return replyText;
 
 
+        }
 
-
-
+        private static Attachment CreateCardMessageOneButtonOneImage(string imageUrl, string buttonTitle, string buttonUrl,string heroTitle, string heroSubtitle)
+        {
+            var cardImages = new List<CardImage>
+            {
+                new CardImage(url: imageUrl)
+            };
+            var cardButtons = new List<CardAction>();
+            var plButton = new CardAction()
+            {
+                Value = buttonUrl,
+                Type = "openUrl",
+                Title = buttonTitle
+            };
+            cardButtons.Add(plButton);
+            var plCard = new HeroCard()
+            {
+                Title = heroTitle,
+                Subtitle = heroSubtitle,
+                Images = cardImages,
+                Buttons = cardButtons
+            };
+            var plAttachment = plCard.ToAttachment();
+            return plAttachment;
         }
 
         private async Task<List<string>> GetMessageKeyPhrases(string message)
@@ -198,7 +277,7 @@ namespace HabitatBot
             return sentimentScore;
         }
 
-        public async Task<string> GetMessageSentimentScoreText(string message)
+        private async Task<string> GetMessageSentimentScoreText(string message)
         {
             var sentimentScore = await GetMessageSentimentScore(message);
             //TODO Check sentiment and respond accordingly
@@ -218,8 +297,7 @@ namespace HabitatBot
             return $"{sentimentText} and your sentimentScore is {sentimentScore}";
         }
 
-
-        public async Task<string> GetMessageKeyPhrasesText(string message)
+        private async Task<string> GetMessageKeyPhrasesText(string message)
         {
             var keyPhrases = await GetMessageKeyPhrases(message);
 
