@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
+using HabitatBot.Helpers;
 using HabitatBot.Models;
 using Microsoft.Bot.Connector;
 using Newtonsoft.Json;
@@ -23,12 +24,12 @@ namespace HabitatBot.Controllers
         /// </summary>
         public async Task<HttpResponseMessage> Post([FromBody]Activity activity)
         {
-            
+
 
             if (activity.Type == ActivityTypes.Message)
             {
                 var connector = new ConnectorClient(new Uri(activity.ServiceUrl));
-                var reply= await MakeReply(activity);
+                var reply = await MakeReply(activity);
                 await connector.Conversations.ReplyToActivityAsync(reply);
             }
             else
@@ -37,35 +38,6 @@ namespace HabitatBot.Controllers
             }
             var response = Request.CreateResponse(HttpStatusCode.OK);
             return response;
-        }
-
-        private Activity HandleSystemMessage(Activity message)
-        {
-            if (message.Type == ActivityTypes.DeleteUserData)
-            {
-                // Implement user deletion here
-                // If we handle user deletion, return a real message
-            }
-            else if (message.Type == ActivityTypes.ConversationUpdate)
-            {
-                // Handle conversation state changes, like members being added and removed
-                // Use Activity.MembersAdded and Activity.MembersRemoved and Activity.Action for info
-                // Not available in all channels
-            }
-            else if (message.Type == ActivityTypes.ContactRelationUpdate)
-            {
-                // Handle add/remove from contact lists
-                // Activity.From + Activity.Action represent what happened
-            }
-            else if (message.Type == ActivityTypes.Typing)
-            {
-                // Handle knowing tha the user is typing
-            }
-            else if (message.Type == ActivityTypes.Ping)
-            {
-            }
-
-            return null;
         }
 
         public string PredefinedQuestions(string message)
@@ -85,6 +57,7 @@ namespace HabitatBot.Controllers
             return null;
 
         }
+
         async Task<HttpResponseMessage> DetectSentiment(string message)
         {
             return await PostResquestToAzureTextAnalytics(message, "sentiment");
@@ -124,7 +97,7 @@ namespace HabitatBot.Controllers
         async Task<Activity> MakeReply(Activity message)
         {
 
-            Activity reply=null;
+            Activity reply = null;
             string replyText = null;
 
             var luis = await DetectEntityFromLuis(message.Text);
@@ -133,15 +106,37 @@ namespace HabitatBot.Controllers
                 switch (luis.TopScoringIntent.Intent)
                 {
                     case "Hi":
-                         replyText = $"Hi there :), how can I help you?";
-                         reply = message.CreateReply(replyText);
-                      
+                        replyText = $"Hi there :), how can I help you?";
+                        reply = message.CreateReply(replyText);
+
                         break;
                     case "Search":
                         if (Request.RequestUri.Host.Contains("localhost"))
                         {
                             //sitecore api hosted locally
+                            var keywords=await GetMessageKeyPhrasesText(message.Text);
                             //Call api
+                            var sitecoreSearchTextEndPointUri =ConfigurationManager.AppSettings["SitecoreSearchTextEndPoint"] +$"?id={keywords.FirstOrDefault()}";
+                            var client = new HttpClient();
+
+                            // Request headers
+                            client.DefaultRequestHeaders.Add("Accept", "application/json");
+
+              
+                            var getResult = await client.GetAsync(sitecoreSearchTextEndPointUri);
+                            var rawResponse = await getResult.Content.ReadAsStringAsync();
+                            var items  = JsonConvert.DeserializeObject<List<  HabitatSearchModel>>(rawResponse).Take(3);
+
+                            var replyToSearchConversation = message.CreateReply("This bot is built by:");
+                            replyToSearchConversation.Recipient = message.From;
+                            replyToSearchConversation.Type = "message";
+                            replyToSearchConversation.Attachments = new List<Attachment>();
+                            foreach (var item in items)
+                            {
+                                var card = CreateCardMessageOneButtonOneImage(null, @"See more", item.Link, item.Name, item.Description);
+                                replyToSearchConversation.Attachments.Add(card);
+                            }
+                            reply = replyToSearchConversation;
                         }
                         else
                         {
@@ -155,7 +150,7 @@ namespace HabitatBot.Controllers
                         replyToConversation.Recipient = message.From;
                         replyToConversation.Type = "message";
                         replyToConversation.Attachments = new List<Attachment>();
-                        var card1 = CreateCardMessageOneButtonOneImage("https://pbs.twimg.com/profile_images/764455063892791299/D3h9i0qI.jpg",@"See more", "https://azadehkhojandi.blogspot.com.au/", "Azadeh Khojandi","");
+                        var card1 = CreateCardMessageOneButtonOneImage("https://pbs.twimg.com/profile_images/764455063892791299/D3h9i0qI.jpg", @"See more", "https://azadehkhojandi.blogspot.com.au/", "Azadeh Khojandi", "");
                         var card2 = CreateCardMessageOneButtonOneImage("https://pbs.twimg.com/profile_images/794145230110887937/K8avquW0.jpg", @"See more", "https://zhenyuan.azurewebsites.net/", "Zhen Yuan", "");
                         var card3 = CreateCardMessageOneButtonOneImage("https://abs.twimg.com/sticky/default_profile_images/default_profile_4_200x200.png", @"See more", "https://twitter.com/budi4w4n", "Budiawan Muliawan", "");
                         replyToConversation.Attachments.Add(card1);
@@ -180,7 +175,7 @@ namespace HabitatBot.Controllers
                         break;
                 }
             }
-            if ( reply == null)
+            if (reply == null)
             {
                 replyText = "I didn't understand your command may be start by typeing help";
                 reply = message.CreateReply(replyText);
@@ -189,27 +184,33 @@ namespace HabitatBot.Controllers
 
         }
 
-        private static Attachment CreateCardMessageOneButtonOneImage(string imageUrl, string buttonTitle, string buttonUrl,string heroTitle, string heroSubtitle)
+        private static Attachment CreateCardMessageOneButtonOneImage(string imageUrl, string buttonTitle, string buttonUrl, string heroTitle, string heroSubtitle)
         {
-            var cardImages = new List<CardImage>
-            {
-                new CardImage(url: imageUrl)
-            };
+           
             var cardButtons = new List<CardAction>();
             var plButton = new CardAction()
             {
                 Value = buttonUrl,
                 Type = "openUrl",
-                Title = buttonTitle
+                Title = StringHelper.StripHtml(buttonTitle)
             };
             cardButtons.Add(plButton);
             var plCard = new HeroCard()
             {
-                Title = heroTitle,
-                Subtitle = heroSubtitle,
-                Images = cardImages,
+                Title = StringHelper.StripHtml( heroTitle),
+                Subtitle = StringHelper.StripHtml(heroSubtitle),
+               
                 Buttons = cardButtons
             };
+            if (!string.IsNullOrEmpty(imageUrl))
+            {
+                var cardImages = new List<CardImage>
+                {
+                    new CardImage(url: imageUrl)
+                };
+                plCard.Images = cardImages;
+            }
+
             var plAttachment = plCard.ToAttachment();
             return plAttachment;
         }
@@ -261,7 +262,7 @@ namespace HabitatBot.Controllers
 
 
             return $"key phrases I found: {(keyPhrases != null ? string.Join(",", keyPhrases.ToArray()) : "")} ";
-            
+
         }
 
         private static async Task<HabitatLuis> DetectEntityFromLuis(string query)
@@ -280,6 +281,35 @@ namespace HabitatBot.Controllers
                 }
             }
             return result;
+        }
+
+        private Activity HandleSystemMessage(Activity message)
+        {
+            if (message.Type == ActivityTypes.DeleteUserData)
+            {
+                // Implement user deletion here
+                // If we handle user deletion, return a real message
+            }
+            else if (message.Type == ActivityTypes.ConversationUpdate)
+            {
+                // Handle conversation state changes, like members being added and removed
+                // Use Activity.MembersAdded and Activity.MembersRemoved and Activity.Action for info
+                // Not available in all channels
+            }
+            else if (message.Type == ActivityTypes.ContactRelationUpdate)
+            {
+                // Handle add/remove from contact lists
+                // Activity.From + Activity.Action represent what happened
+            }
+            else if (message.Type == ActivityTypes.Typing)
+            {
+                // Handle knowing tha the user is typing
+            }
+            else if (message.Type == ActivityTypes.Ping)
+            {
+            }
+
+            return null;
         }
 
     }

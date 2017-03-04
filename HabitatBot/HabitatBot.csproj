@@ -122,6 +122,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App_Start\WebApiConfig.cs" />
+    <Compile Include="Helpers\StringHelper.cs" />
     <Compile Include="Models\BatchInput.cs" />
     <Compile Include="Models\BatchKeyPhrasesResul.cs" />
     <Compile Include="Models\BatchSentimentResult.cs" />
@@ -129,6 +130,7 @@
     <Compile Include="Models\DocumentKeyPhrasesResult.cs" />
     <Compile Include="Models\DocumentSentimentResult.cs" />
     <Compile Include="Models\HabitatLuis.cs" />
+    <Compile Include="Models\HabitatSearchModel.cs" />
     <Compile Include="Models\LuisEntity.cs" />
     <Compile Include="Models\LuisIntent.cs" />
     <Compile Include="Models\LuisTopScoringIntent.cs" />
