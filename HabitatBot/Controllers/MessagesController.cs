@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.EnterpriseServices.Internal;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -14,6 +16,7 @@ namespace HabitatBot
     [BotAuthentication]
     public class MessagesController : ApiController
     {
+
         /// <summary>
         /// POST: api/Messages
         /// Receive a message from a user and reply to it
@@ -23,11 +26,18 @@ namespace HabitatBot
             if (activity.Type == ActivityTypes.Message)
             {
                 ConnectorClient connector = new ConnectorClient(new Uri(activity.ServiceUrl));
-                // calculate something for us to return
-                int length = (activity.Text ?? string.Empty).Length;
+
+
+                var message = predefinedQuestions(activity.Text);
+                if (string.IsNullOrEmpty(message))
+                {
+                    // calculate something for us to return
+                    int length = (activity.Text ?? string.Empty).Length;
+                    message = $"You sent {activity.Text} which was {length} characters";
+                }
 
                 // return our reply to the user
-                Activity reply = activity.CreateReply($"You sent {activity.Text} which was {length} characters");
+                Activity reply = activity.CreateReply(message);
                 await connector.Conversations.ReplyToActivityAsync(reply);
             }
             else
@@ -67,8 +77,26 @@ namespace HabitatBot
             return null;
         }
 
+        public string predefinedQuestions(string message)
+        {
+            var sitecoreSearchTextEndPoint = ConfigurationManager.AppSettings["SitecoreSearchTextEndPoint"];
+            var qa = new Dictionary<string, string>
+            {
+                {"who built this bot", "team red staffy: Az,Zhen,Budi"},
+                {"bot info", $" SitecoreSearchTextEndPoint: {sitecoreSearchTextEndPoint}"}
+            };
+
+            var answer = qa.FirstOrDefault(x => message.Contains(x.Key));
+            if (answer.Value != null)
+            {
+                return answer.Value;
+            }
+            return null;
+
+        }
 
     }
+
     public class BatchResult
     {
         public List<DocumentResult> Documents { get; set; }
