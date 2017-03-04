@@ -1,20 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.EnterpriseServices.Internal;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
-using System.Web.Http.Description;
-using System.Web.UI.WebControls;
 using HabitatBot.Models;
 using Microsoft.Bot.Connector;
 using Newtonsoft.Json;
 
-namespace HabitatBot
+namespace HabitatBot.Controllers
 {
     [BotAuthentication]
     public class MessagesController : ApiController
@@ -28,18 +25,10 @@ namespace HabitatBot
         {
             
 
-
-
             if (activity.Type == ActivityTypes.Message)
             {
                 var connector = new ConnectorClient(new Uri(activity.ServiceUrl));
-
-             
-
                 var reply= await MakeReply(activity);
-
-             
-
                 await connector.Conversations.ReplyToActivityAsync(reply);
             }
             else
@@ -135,35 +124,6 @@ namespace HabitatBot
         async Task<Activity> MakeReply(Activity message)
         {
 
-
-
-            //            {
-            //                "type": "message",
-            //  "text": "Sample with a hero card",
-            //  "attachments": [
-            //    {
-            //      "contentType": "application/vnd.microsoft.card.hero",
-            //      "content": {
-            //        "title": "I'm a hero card",
-            //        "subtitle": "Please visit my site.",
-            //        "images": [
-            //          {
-            //            "url": "https://mydeploy.azurewebsites.net/matsu.jpg"
-            //          }
-            //        ],
-            //        "buttons": [
-            //          {
-            //            "type": "openUrl",
-            //            "title": "Go to my site",
-            //            "value": "https://blogs.msdn.microsoft.com/tsmatsuz"
-            //          }
-            //        ]
-            //      }
-            //    }
-            //  ]
-            //}
-
-
             Activity reply=null;
             string replyText = null;
 
@@ -226,8 +186,6 @@ namespace HabitatBot
                 reply = message.CreateReply(replyText);
             }
             return reply;
-
-
 
         }
 

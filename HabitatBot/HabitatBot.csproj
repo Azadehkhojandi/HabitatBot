@@ -114,6 +114,7 @@
     <Content Include="default.htm" />
     <Content Include="Global.asax" />
     <Content Include="images\help\emulator1.PNG" />
+    <Content Include="images\help\HabiatBotDiagram.png" />
     <Content Include="images\Icons\nerd-face-emoji.png" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>

@@ -14,4 +14,11 @@
 you need to update values in appsettings to get the module working
 
 
-for detailed info you can look into https://docs.botframework.com/en-us/csharp/builder/sdkreference/gettingstarted.html
+for detailed info you can look into
+1- https://docs.botframework.com/en-us/csharp/builder/sdkreference/gettingstarted.html
+2- https://docs.botframework.com/en-us/csharp/builder/sdkreference/attachments.html
+3- http://www.c-sharpcorner.com/article/an-interactive-bot-application-with-luis-using-microsoft-bot/
+4- https://docs.botframework.com/en-us/csharp/builder/sdkreference/dialogs.html
+5- https://docs.microsoft.com/en-us/azure/cognitive-services/cognitive-services-text-analytics-quick-start
+6- https://www.luis.ai
+
